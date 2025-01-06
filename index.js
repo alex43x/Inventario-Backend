@@ -34,6 +34,16 @@ app.get('/users', async (req, res) => {
   }
 });
 
+app.get('/products', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM productos'); 
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Error al obtener los productos 😢');
+  }
+});
+
 // Ruta para manejar el inicio de sesión
 app.post('/login', async (req, res) => {
   const { id, password } = req.body;
@@ -46,9 +56,10 @@ app.post('/login', async (req, res) => {
     }
 
     const user = result.rows[0];
-    console.log('Consulta de Log-in con el user: ', user);
+    console.log('Consulta de Log-in con el user: ', user.username);
     // Comprobación de contraseña
     if (password !== user.password) {
+      console.log('Constraseña incorrecta'); 
       return res.status(401).json({ message: 'Contraseña incorrecta' });
     }
     //  Crear un token JWT (no implementado)
@@ -58,7 +69,6 @@ app.post('/login', async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error del servidor' });
-    console.log('Error del servidor');  
   }
 });
 
