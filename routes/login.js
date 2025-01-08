@@ -22,7 +22,7 @@ router.post('/login', async (req, res) => {
       //  Crear un token JWT (no implementado)
       //const token = jwt.sign({ id: user.id_user}, 'clave_secreta', { expiresIn: '1h' });
       res.status(200).json({ message: 'Inicio de sesión exitoso'});
-      console.log('Inicio de sesión exitoso');
+      console.log('Inicio de sesión exitoso, User: ', user.username);
     } catch (error) {
       console.error(error);
       res.status(500).json({ message: 'Error del servidor' });
