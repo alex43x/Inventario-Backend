@@ -1,11 +1,10 @@
-const express = require('express');
-const router = express.Router();
+const express = require('express'); // Importa el módulo express
+const router = express.Router(); // Crea un objeto Router
 const pool = require('../db'); // Configura tu conexión a PostgreSQL
 
 // Ruta para manejar el inicio de sesión
 router.post('/login', async (req, res) => {
     const { id, password } = req.body;
-  
     try {
       //  Comprueba si el usuario existe en la BD
       const result = await pool.query(`SELECT * FROM users WHERE id_user = ${id}`);
