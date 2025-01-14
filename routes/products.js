@@ -33,6 +33,20 @@ router.post('/products', async (req, res) => {
   }
 });
 
+//Módulo para actualizar el stock del producto en general
+router.post('/products/:id', async(req, res)=>{
+  const{id}=req.params;
+  const{cant}=req.body;
+  console.log('Solicitud para actualizar stock:',id,cant)
+  try{
+    const result=await pool.query(`UPDATE productos SET stock = stock + $1 WHERE id_prod = $2; `,[cant, id]);
+    console.log('Stock actualizado');
+  } catch(err){
+  res.status(500).json('Error al actualizar el stock');
+  console.log('Error al actualizar el stock')
+  }
+});
+
 //Para eliminar un producto
 router.delete('/products/:id', async (req, res) => {
   const { id } = req.params;
