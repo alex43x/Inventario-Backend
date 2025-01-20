@@ -29,6 +29,25 @@ router.get('/products/:id', async (req, res) => {
   }
 });
 
+router.get('/search/products', async (req, res) => {
+  const { nombre } = req.query;
+  console.log(nombre)
+  if (!nombre) {
+    return res.status(400).json({ error: "El término de búsqueda es obligatorio" });
+  }
+  const limit = 3; // Limitar a 5 resultados por defecto
+  try {
+    const result = await pool.query(
+      `SELECT * FROM productos WHERE nombre ILIKE $1 LIMIT $2`, 
+      [`%${nombre}%`,limit] // Búsqueda que ignora mayúsculas/minúsculas
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Error al buscar productos" });
+  }
+});
+
 // Para agregar un nuevo producto
 router.post('/products', async (req, res) => {
   const { nombre, descrip, stock, iva, categoria } = req.body;
