@@ -28,17 +28,35 @@ router.get('/sales/:id', async (req, res) => {
 
 // Para agregar un nuevo producto
 router.post('/sales', async (req, res) => {
-    const { fecha, subototal, iva, total, cliente, vendedor } = req.body;
+    const { fecha, subtotal, iva, total, cliente, vendedor } = req.body;
+    console.log(fecha,subtotal,iva,total,cliente,vendedor)
     try {
         const newSale = await pool.query(
-            'INSERT INTO productos (fecha, subototal, iva, total, cliente, vendedor) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-            [fecha, subototal, iva, total, cliente, vendedor]
+            'INSERT INTO ventas (fecha, subtotal, iva, total, cliente, vendedor) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+            [fecha, subtotal, iva, total, cliente, vendedor]
         );
         res.json(newSale.rows[0]);
-        console.log('Producto agregado con éxito', newSale.rows[0]);
+        console.log('Venta exitosa', newSale.rows[0]);
     } catch (error) {
         res.status(500).json({ error: error.message });
-        console.error("Error al crear un producto 😢");
+        console.error("Error al registrar venta 😢");
+    }
+});
+
+// Para agregar un nuevo producto
+router.post('/sales-products', async (req, res) => {
+    const { venta, producto, cantidad, iva, subtotal, total} = req.body;
+    console.log(venta, producto, cantidad, iva, subtotal, total)
+    try {
+        const newSale = await pool.query(
+            'INSERT INTO subventas (id_venta, producto, cantidad, iva, subtotal, total) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+            [venta, producto, cantidad, iva, subtotal, total]
+        );
+        res.json(newSale.rows[0]);
+        console.log('Subeventa agregada con éxito', newSale.rows[0]);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+        console.error("Error al registrar subventa 😢");
     }
 });
 

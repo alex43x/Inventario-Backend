@@ -9,7 +9,7 @@ const productsRoutes = require('./routes/products');
 const loginRoutes = require('./routes/login');
 const inventoryRoutes = require('./routes/inventory');
 const categoriesRoutes=require('./routes/categories')
-const clientsRoutes=require('./routes/clients')
+const customersRoutes=require('./routes/customers')
 const salesRoutes=require('./routes/sales')
 
 app.use(cors());
@@ -19,7 +19,7 @@ app.use(productsRoutes);
 app.use(loginRoutes);
 app.use(inventoryRoutes);
 app.use(categoriesRoutes);
-app.use(clientsRoutes);
+app.use(customersRoutes);
 app.use(salesRoutes)
 
 
