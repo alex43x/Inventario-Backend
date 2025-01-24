@@ -1,6 +1,7 @@
 const express = require('express'); // Importa el módulo express
 const router = express.Router(); // Crea un objeto Router
 const pool = require('../db'); // Configura tu conexión a PostgreSQL
+const axios= require('axios')
 
 router.get('/sales', async (req, res) => {
     try {
@@ -45,20 +46,46 @@ router.post('/sales', async (req, res) => {
 
 // Para agregar un nuevo producto
 router.post('/sales-products', async (req, res) => {
-    const { venta, producto, cantidad, iva, subtotal, total} = req.body;
-    console.log(venta, producto, cantidad, iva, subtotal, total)
+    const { venta, producto, cantidad, iva, subtotal, total } = req.body;
+
+    console.log('subventaData: ', venta, producto, cantidad, iva, subtotal, total);
+
     try {
+        // Inserción en la tabla subventas
         const newSale = await pool.query(
             'INSERT INTO subventas (id_venta, producto, cantidad, iva, subtotal, total) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
             [venta, producto, cantidad, iva, subtotal, total]
         );
-        res.json(newSale.rows[0]);
-        console.log('Subeventa agregada con éxito', newSale.rows[0]);
+        console.log('Subventa agregada con éxito', newSale.rows[0]);
+
+        // Reducir el stock del producto
+        try {
+            const stockResponse = await axios.put(`http://localhost:3000/${producto}/reduce-stock`, { cantidad });
+            console.log('Stock actualizado con éxito:', stockResponse.data);
+        } catch (error) {
+            console.error('Error al reducir el stock:', error.response?.data || error.message);
+        }
+
+        // Reducir el inventario global
+        try {
+            const inventoryResponse = await axios.post(`http://localhost:3000/reduce-inventory`, {
+                productoId: producto,
+                cantidadVendida: cantidad   
+            });
+            console.log('Inventario global actualizado con éxito:', inventoryResponse.data);
+        } catch (error) {
+            console.error('Error al actualizar el inventario:', error.response?.data || error.message);
+        }
+
+        // Respuesta al cliente
+        res.json(newSale.rows);
     } catch (error) {
+        // Error general al insertar la subventa
+        console.error("Error al registrar subventa 😢", error);
         res.status(500).json({ error: error.message });
-        console.error("Error al registrar subventa 😢");
     }
 });
+
 
 //Para eliminar un producto
 router.delete('/sales/:id', async (req, res) => {

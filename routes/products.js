@@ -37,8 +37,8 @@ router.get('/search/products', async (req, res) => {
   const limit = 5; // Limitar a 5 resultados por defecto
   try {
     const result = await pool.query(
-      `SELECT * FROM productos WHERE nombre ILIKE $1 LIMIT $2`, 
-      [`%${nombre}%`,limit] // Búsqueda que ignora mayúsculas/minúsculas
+      `SELECT * FROM productos WHERE nombre ILIKE $1 LIMIT $2`,
+      [`%${nombre}%`, limit] // Búsqueda que ignora mayúsculas/minúsculas
     );
     res.json(result.rows);
   } catch (error) {
@@ -104,6 +104,23 @@ router.put('/products/:id', async (req, res) => {
     if (updatedProduct.rows.length === 0) return res.status(404).json({ error: 'Producto no encontrado' });
     res.json(updatedProduct.rows[0]);
   } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.put('/:id/reduce-stock', async (req, res) => {
+  const { id } = req.params;
+  const { cantidad } = req.body;
+  console.log('Reduce-stock', id, cantidad)
+  try {
+    const reduceStock = await pool.query(
+      'UPDATE productos SET stock = stock - $1 WHERE id_prod = $2 RETURNING * ',
+      [cantidad, id]
+    );
+    res.json(reduceStock.rows[0]);
+    console.table(reduceStock.rows)
+  } catch (error) {
+    console.log(error);
     res.status(500).json({ error: error.message });
   }
 });
