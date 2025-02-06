@@ -10,7 +10,7 @@ router.get('/categories', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM categorias');
     res.json(result.rows);
-    console.log('Consulta de productos realizada');
+    console.log('Consulta de categorías realizada');
   } catch (err) {
     console.error(err);
     res.status(500).send('Error al obtener los productos 😢');

@@ -11,6 +11,7 @@ const inventoryRoutes = require('./routes/inventory');
 const categoriesRoutes=require('./routes/categories')
 const customersRoutes=require('./routes/customers')
 const salesRoutes=require('./routes/sales')
+const paymentsRoutes=require('./routes/payments')
 
 app.use(cors());
 app.use(express.json());
@@ -20,7 +21,8 @@ app.use(loginRoutes);
 app.use(inventoryRoutes);
 app.use(categoriesRoutes);
 app.use(customersRoutes);
-app.use(salesRoutes)
+app.use(salesRoutes);
+app.use(paymentsRoutes);
 
 
 const port = 3000;

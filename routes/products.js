@@ -8,9 +8,27 @@ const pool = require('../db'); // Importa el pool de datos de db/index.js
 // Obtener todos los productos
 router.get('/products', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM productos');
+    const { search, category, page = 1, limit = 20 } = req.query;
+    const offset = (page - 1) * limit;  
+
+    let query = `SELECT * FROM productos WHERE 1=1`;
+    let values = [];
+
+    if (search) {
+      query += ` AND nombre ILIKE $${values.length + 1}`;
+      values.push(`%${search}%`);
+    }
+
+    if (category) {
+      query += ` AND categoria = $${values.length + 1}`;
+      values.push(category);
+    }
+
+    query += ` ORDER BY id_prod LIMIT $${values.length + 1} OFFSET $${values.length + 2}`;
+    values.push(limit, offset);
+
+    const result = await pool.query(query, values);
     res.json(result.rows);
-    console.log('Consulta de productos realizada');
   } catch (err) {
     console.error(err);
     res.status(500).send('Error al obtener los productos 😢');
@@ -22,7 +40,7 @@ router.get('/products/:id', async (req, res) => {
   try {
     const result = await pool.query(`SELECT * FROM productos WHERE id_prod=$1`, [id]);
     res.json(result.rows);
-    console.log('Consulta de productos realizada');
+    console.log('Consulta de producto específico realizada');
   } catch (err) {
     console.error(err);
     res.status(500).send('Error al obtener los productos 😢');
@@ -37,7 +55,7 @@ router.get('/search/products', async (req, res) => {
   const limit = 5; // Limitar a 5 resultados por defecto
   try {
     const result = await pool.query(
-      `SELECT * FROM productos WHERE nombre ILIKE $1 LIMIT $2`,
+      `SELECT * FROM productos WHERE nombre ILIKE $1 AND stock > 0 LIMIT $2`,
       [`%${nombre}%`, limit] // Búsqueda que ignora mayúsculas/minúsculas
     );
     res.json(result.rows);
@@ -49,11 +67,11 @@ router.get('/search/products', async (req, res) => {
 
 // Para agregar un nuevo producto
 router.post('/products', async (req, res) => {
-  const { nombre, descrip, stock, iva, categoria } = req.body;
+  const { nombre, descrip, stock, precio, iva, categoria } = req.body;
   try {
     const newProduct = await pool.query(
-      'INSERT INTO productos (nombre, descrip, stock, iva, categoria) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [nombre, descrip, stock, iva, categoria]
+      'INSERT INTO productos (nombre, descrip, stock, precio, iva, categoria) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [nombre, descrip, stock, precio, iva, categoria]
     );
     res.json(newProduct.rows[0]);
     console.log('Producto agregado con éxito', newProduct.rows[0]);
@@ -62,12 +80,11 @@ router.post('/products', async (req, res) => {
     console.error("Error al crear un producto 😢");
   }
 });
-
 //Módulo para actualizar el stock del producto en general
 router.post('/products/:id', async (req, res) => {
   const { id } = req.params;
   const { cant } = req.body;
-  console.log('Solicitud para actualizar stock:', id, cant)
+  console.log('Solicitud para actualizar stock. ID: ', id,', cantidad: ', cant)
   try {
     const result = await pool.query(`UPDATE productos SET stock = stock + $1 WHERE id_prod = $2; `, [cant, id]);
     console.log('Stock actualizado');
@@ -93,13 +110,13 @@ router.delete('/products/:id', async (req, res) => {
 });
 
 // Para actualizar un producto
-router.put('/products/:id', async (req, res) => {
+router.put('/products-edit/:id', async (req, res) => {
   const { id } = req.params;
-  const { nombre, descrip, stock, iva, categoria } = req.body;
+  const { nombre, descrip, stock, iva, categoria, precio } = req.body;
   try {
     const updatedProduct = await pool.query(
-      'UPDATE productos SET nombre = $2, descrip = $3, stock = $4, iva = $5, categoria = $6 WHERE id_prod = $1 RETURNING *',
-      [id, nombre, descrip, stock, iva, categoria]
+      'UPDATE productos SET nombre = $2, descrip = $3, stock = $4, iva = $5, categoria = $6, precio = $7 WHERE id_prod = $1 RETURNING *',
+      [id, nombre, descrip, stock, iva, categoria, precio]
     );
     if (updatedProduct.rows.length === 0) return res.status(404).json({ error: 'Producto no encontrado' });
     res.json(updatedProduct.rows[0]);
@@ -111,7 +128,7 @@ router.put('/products/:id', async (req, res) => {
 router.put('/:id/reduce-stock', async (req, res) => {
   const { id } = req.params;
   const { cantidad } = req.body;
-  console.log('Reduce-stock', id, cantidad)
+  console.log('Reducción de stock general...')
   try {
     const reduceStock = await pool.query(
       'UPDATE productos SET stock = stock - $1 WHERE id_prod = $2 RETURNING * ',
