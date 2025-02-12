@@ -18,9 +18,8 @@ router.get('/payments', async (req, res) => {
 router.get('/payments/:customer', async (req, res) => {
     const { customer } = req.params
     const { saldo } = req.query
-    console.log(saldo)
     try {
-        const payments = await pool.query("select pago, fecha, 'Pago' as origen from pagos where cliente=$1 and estado = 'pendiente' union all select total,fecha, 'Venta' as origen from ventas where cliente=$1 and estado='pendiente' order by fecha desc", [customer]);
+        const payments = await pool.query("select pago, fecha, 'Pago' as origen from pagos where cliente=$1 and estado != 'anulado' union all select total,fecha, 'Venta' as origen from ventas where cliente=$1 and estado!='anulado' order by fecha desc limit 15", [customer]);
         console.log('Consulta de pagos por cliente: ', customer)
         payments.rows[0].saldo = Number(saldo);
         for (let i = 1; i < payments.rows.length; i++) {
@@ -42,9 +41,9 @@ router.get("/movements", async (req, res) => {
     try {
         const query = `
             SELECT 
-                'Compra de producto: ' ||productos.nombre AS elemento, 
+                productos.nombre AS elemento, 
                 (inventario.precio_compra * inventario.cant) AS total, 
-                'Compra' AS tipo,
+                inventario.cant as cantidad,
 	            inventario.fecha_compra as fecha
             FROM 
                 inventario
@@ -52,26 +51,7 @@ router.get("/movements", async (req, res) => {
                  productos ON inventario.id_prod = productos.id_prod 
             WHERE 
                 inventario.cant > 0 
-
-            UNION ALL
-
-            SELECT 
-                CASE 
-                    WHEN pagos.estado = 'pendiente' THEN 'Pago por: ' || clientes.nombre 
-                    WHEN pagos.estado = 'cerrado' THEN 'Venta a: '|| clientes.nombre 
-                    ELSE 'Otro' -- Opcional: para manejar otros valores
-                END AS elemento,
-                pagos.pago AS total, 
-            CASE 
-                WHEN pagos.estado = 'pendiente' THEN 'Pago' 
-                WHEN pagos.estado = 'cerrado' THEN 'Venta' 
-                ELSE 'Otro' -- Opcional: para manejar otros valores
-            END AS tipo,
-	            pagos.fecha as fecha
-            FROM pagos
-            JOIN 
-                clientes ON pagos.cliente = clientes.id 
-            ORDER BY fecha DESC
+            order by fecha_compra desc
             limit 10;`;
         const result = await pool.query(query);
         res.json(result.rows);

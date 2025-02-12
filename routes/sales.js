@@ -5,7 +5,58 @@ const axios = require('axios')
 
 router.get('/sales', async (req, res) => {
     try {
-        const result = await pool.query('SELECT ventas.id, ventas.total, ventas.fecha, clientes.nombre AS cliente, users.username as vendedor from ventas join clientes on ventas.cliente=clientes.id join users on ventas.vendedor=users.id_user order by ventas.fecha desc');
+        const { search, page = 1, limit = 20 } = req.query;
+        const offset = (page - 1) * limit;
+        
+        let query = `
+            SELECT ventas.id, ventas.total, ventas.fecha, 
+                   clientes.nombre AS cliente, users.username AS vendedor
+            FROM ventas
+            JOIN clientes ON ventas.cliente = clientes.id
+            JOIN users ON ventas.vendedor = users.id_user
+            WHERE 1=1
+        `;
+        let values = [];
+
+        if (search) {
+            query += ` AND (clientes.nombre ILIKE $${values.length + 1} OR users.username ILIKE $${values.length + 1})`;
+            values.push(`%${search}%`);
+        }
+
+        query += ` ORDER BY ventas.fecha DESC LIMIT $${values.length + 1} OFFSET $${values.length + 2}`;
+        values.push(limit, offset);
+
+        const result = await pool.query(query, values);
+        res.json(result.rows);
+
+        console.log('Consulta de ventas realizada');
+        console.table(result.rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Error al obtener las ventas 😢');
+    }
+});
+
+
+router.get('/sales-dashboard', async (req, res) => {
+    try {
+        const daily = await pool.query('select date(fecha) as inicio, sum(total) as total from ventas where fecha::date=current_date group by inicio;');
+        const weekly = await pool.query("SELECT DATE_TRUNC('week', fecha) AS inicio, SUM(total) AS total FROM ventas WHERE DATE_TRUNC('week', fecha) = DATE_TRUNC('week', CURRENT_DATE) GROUP BY inicio;");
+        const monthly = await pool.query("SELECT DATE_TRUNC('month', fecha) AS inicio, SUM(total) AS total FROM ventas WHERE DATE_TRUNC('month', fecha) = DATE_TRUNC('month', CURRENT_DATE) GROUP BY inicio;");
+        const data = [daily.rows[0], weekly.rows[0], monthly.rows[0]]
+
+        res.json(data);
+        console.log('Consulta de ventas realizada')
+        console.table(data)
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Error al obtener las ventas 😢');
+    }
+});
+
+router.get('/sales-graph', async (req, res) => {
+    try {
+        const result = await pool.query("SELECT fechas.dia, TO_CHAR(fechas.dia, 'DD Mon') AS dia_formateado, COALESCE(SUM(v.total), 0) AS total_dia FROM (SELECT generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, INTERVAL '1 day')::DATE AS dia) AS fechas LEFT JOIN ventas v ON DATE(v.fecha) = fechas.dia GROUP BY fechas.dia ORDER BY fechas.dia;");
         res.json(result.rows);
         console.log('Consulta de ventas realizada')
         console.table(result.rows)
@@ -41,6 +92,31 @@ router.get('/sub-sales-by/:id', async (req, res) => {
         res.status(500).send('Error al obtener subventas');
     }
 });
+
+router.get('/sub-sales-product/:id', async (req, res) => {
+    const { id } = req.params;
+    console.log('Solicitud para obtener subventas de producto de ID: ', id);
+    try {
+        const subsales = await pool.query(
+            `SELECT clientes.nombre as elemento, 
+                    subventas.cantidad as cantidad, 
+                    TO_CHAR(ventas.fecha, 'YYYY-MM-DD HH24:MI:SS') as total 
+             FROM subventas 
+             JOIN ventas ON subventas.id_venta = ventas.id 
+             JOIN clientes ON ventas.cliente = clientes.id 
+             WHERE ventas.estado != 'anulado' 
+             AND subventas.producto = $1;`, 
+            [id]
+        );
+
+        res.json(subsales.rows);
+        console.table(subsales.rows);
+    } catch (error) {
+        console.error(error);
+        res.status(500).send('Error al obtener subventas');
+    }
+});
+
 
 // Para agregar venta
 router.post('/sales', async (req, res) => {
@@ -118,5 +194,7 @@ router.delete('/sales/:id', async (req, res) => {
         res.status(500).send('Error al eliminar un producto 😢');
     }
 });
+
+
 
 module.exports = router;

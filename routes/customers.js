@@ -4,11 +4,30 @@ const pool = require('../db'); // Configura tu conexión a PostgreSQL
 
 router.get('/customers', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM clientes');
+    const { search, category, page = 1, limit = 20 } = req.query;
+    const offset = (page - 1) * limit;  
+
+    let query = `SELECT * FROM clientes WHERE 1=1`;
+    let values = [];
+
+    if (search) {
+      query += ` AND nombre ILIKE $${values.length + 1}`;
+      values.push(`%${search}%`);
+    }
+
+    if (category) {
+      query += ` AND categoria = $${values.length + 1}`;
+      values.push(category);
+    }
+
+    query += ` ORDER BY id LIMIT $${values.length + 1} OFFSET $${values.length + 2}`;
+    values.push(limit, offset);
+
+    const result = await pool.query(query, values);
     res.json(result.rows);
   } catch (err) {
     console.error(err);
-    res.status(500).send('Error al obtener los usuarios 😢');
+    res.status(500).send('Error al obtener los productos 😢');
   }
 });
 

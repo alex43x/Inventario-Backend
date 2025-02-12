@@ -24,7 +24,7 @@ router.post('/login', async (req, res) => {
       }
 
       secret_key= process.env.JWT_SECRET
-      const token = jwt.sign({ id: user.id_user, password: user.password, username: user.username}, secret_key, { expiresIn: '1h' });
+      const token = jwt.sign({ id: user.id_user, password: user.password, username: user.username}, secret_key, { expiresIn: '2h' });
       res.status(200).json({ message: 'Inicio de sesión exitoso', token});
       console.log('Inicio de sesión exitoso, User: ', user.username);
     } catch (error) {

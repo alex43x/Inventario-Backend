@@ -47,6 +47,17 @@ router.get('/products/:id', async (req, res) => {
   }
 });
 
+router.get('/products-alerts', async (req, res) => {
+  try {
+    const result = await pool.query(`select nombre as elemento,stock as cantidad,alerta as total from productos where alerta>=stock order by stock asc limit 10`);
+    res.json(result.rows);
+    console.log('Consulta de producto específico realizada');
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Error al obtener los productos 😢');
+  }
+});
+
 router.get('/search/products', async (req, res) => {
   const { nombre } = req.query;
   if (!nombre) {
@@ -67,14 +78,15 @@ router.get('/search/products', async (req, res) => {
 
 // Para agregar un nuevo producto
 router.post('/products', async (req, res) => {
-  const { nombre, descrip, stock, precio, iva, categoria } = req.body;
+  const { nombre, descrip, stock, precio, iva, categoria, alerta } = req.body;
   try {
     const newProduct = await pool.query(
-      'INSERT INTO productos (nombre, descrip, stock, precio, iva, categoria) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-      [nombre, descrip, stock, precio, iva, categoria]
+      'INSERT INTO productos (nombre, descrip, stock, precio, iva, categoria, alerta) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+      [nombre, descrip, stock, precio, iva, categoria, alerta]
     );
     res.json(newProduct.rows[0]);
-    console.log('Producto agregado con éxito', newProduct.rows[0]);
+    console.log('Producto agregado con éxito');
+    console.table(newProduct.rows[0]);
   } catch (error) {
     res.status(500).json({ error: error.message });
     console.error("Error al crear un producto 😢");

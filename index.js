@@ -12,6 +12,7 @@ const categoriesRoutes=require('./routes/categories')
 const customersRoutes=require('./routes/customers')
 const salesRoutes=require('./routes/sales')
 const paymentsRoutes=require('./routes/payments')
+const reportsRoutes=require('./routes/reports')
 
 app.use(cors());
 app.use(express.json());
@@ -23,6 +24,7 @@ app.use(categoriesRoutes);
 app.use(customersRoutes);
 app.use(salesRoutes);
 app.use(paymentsRoutes);
+app.use(reportsRoutes);
 
 
 const port = 3000;
