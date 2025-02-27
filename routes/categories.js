@@ -1,20 +1,21 @@
-const express = require('express'); // Importa el módulo express
-const router = express.Router();  // Crea un objeto Router(para manejar las diferentes operaciones del CRUD de productos)
-const pool = require('../db'); // Importa el pool de datos de db/index.js
+// RUTA PARA CATEGORIAS DE PRODUCTOS
+const express = require('express');
+const router = express.Router();
+const pool = require('../db');
 
-
-// Rutas para el CRUD de productos
-
-// Obtener todos los productos
+// Obtener todas las categorías
 router.get('/categories', async (req, res) => {
+  const client = await pool.connect();
   try {
-    const result = await pool.query('SELECT * FROM categorias');
-    res.json(result.rows);
+    const result = await client.query('SELECT * FROM categorias');
     console.log('Consulta de categorías realizada');
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Error al obtener los productos 😢');
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error al obtener las categorías:', error);
+    res.status(500).json({ message: 'Error al obtener las categorías' });
+  } finally {
+    client.release();
   }
 });
 
-module.exports=router;
+module.exports = router;

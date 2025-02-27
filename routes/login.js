@@ -1,36 +1,52 @@
-const express = require('express'); // Importa el módulo express
-const router = express.Router(); // Crea un objeto Router
-const pool = require('../db'); // Configura tu conexión a PostgreSQL
-const jwt= require('jsonwebtoken')
-require('dotenv').config();
-
-
+//RUTA DEL LOGIN
+const express = require('express');
+const router = express.Router();
+const pool = require('../db');
+const jwt = require('jsonwebtoken');
 
 // Ruta para manejar el inicio de sesión
 router.post('/login', async (req, res) => {
-    const { id, password } = req.body;
-    try {
-      //  Comprueba si el usuario existe en la BD
-      const result = await pool.query(`SELECT * FROM users WHERE id_user = ${id}`);
-      if (result.rows.length === 0) {
-        return res.status(401).json({ message: 'Usuario no encontrado 🤔' });
-      }
-  
-      const user = result.rows[0];
-      
-      if (password !== user.password) {// Comprobación de contraseña
-        console.log('Constraseña incorrecta'); 
-        return res.status(401).json({ message: 'Contraseña incorrecta' });
-      }
-
-      secret_key= process.env.JWT_SECRET
-      const token = jwt.sign({ id: user.id_user, password: user.password, username: user.username}, secret_key, { expiresIn: '2h' });
-      res.status(200).json({ message: 'Inicio de sesión exitoso', token});
-      console.log('Inicio de sesión exitoso, User: ', user.username);
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: 'Error del servidor' });
+  const { id, password } = req.body;
+  console.log("Solicitud de login recibida:", id);
+  const client = await pool.connect()
+  try {
+    // Verificar si el usuario existe
+    const result = await client.query("SELECT * FROM users WHERE id_user = $1", [id]);
+    if (result.rows.length === 0) {
+      console.log("Usuario no encontrado");
+      return res.status(401).json({ message: 'Usuario o contraseña incorrectos' });
     }
-  });
+
+    const user = result.rows[0];
+
+    // Comparar contraseña sin exponer detalles (REEMPLAZAR ESTO POR HASHING REAL)
+    if (password !== user.password) {
+      console.log("Contraseña incorrecta para el usuario:", id);
+      return res.status(401).json({ message: 'Usuario o contraseña incorrectos' });
+    }
+
+    // Generar token seguro 
+    const secretKey = process.env.JWT_SECRET;
+    if (!secretKey) {
+      console.error("Error: JWT_SECRET no está definido en el .env");
+      return res.status(500).json({ message: 'Error interno del servidor' });
+    }
+
+    const token = jwt.sign(
+      { id: user.id_user, username: user.username },
+      secretKey,
+      { expiresIn: '3h' }
+    );
+
+    console.log("Inicio de sesión exitoso:", user.username);
+    res.status(200).json({ message: 'Inicio de sesión exitoso', token });
+
+  } catch (error) {
+    console.error("Error en el login:", error);
+    res.status(500).json({ message: 'Error interno del servidor' });
+  } finally{
+    client.release();
+  }
+});
 
 module.exports = router;

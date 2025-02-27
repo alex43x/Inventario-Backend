@@ -1,11 +1,14 @@
-const express = require('express'); // Importa el módulo express
-const router = express.Router(); // Crea un objeto Router
-const pool = require('../db'); // Configura tu conexión a PostgreSQL
+//RUTA PARA CLIENTES
+const express = require('express');
+const router = express.Router();
+const pool = require('../db');
 
+// Obtener todos los clientes (con paginación y búsqueda)
 router.get('/customers', async (req, res) => {
+  const client = await pool.connect();
   try {
     const { search, category, page = 1, limit = 20 } = req.query;
-    const offset = (page - 1) * limit;  
+    const offset = (page - 1) * limit;
 
     let query = `SELECT * FROM clientes WHERE 1=1`;
     let values = [];
@@ -23,69 +26,103 @@ router.get('/customers', async (req, res) => {
     query += ` ORDER BY id LIMIT $${values.length + 1} OFFSET $${values.length + 2}`;
     values.push(limit, offset);
 
-    const result = await pool.query(query, values);
+    const result = await client.query(query, values);
+    console.log('Consulta de clientes realizada');
     res.json(result.rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Error al obtener los productos 😢');
+  } catch (error) {
+    console.error('Error al obtener los clientes:', error);
+    res.status(500).json({ message: 'Error al obtener los clientes' });
+  } finally {
+    client.release();
   }
 });
 
+// Obtener un cliente por ID
 router.get('/customers/:id', async (req, res) => {
-  const { id } = req.params
-  console.log("Consulta de cliente: ",id)
+  const client = await pool.connect();
   try {
-    const result = await pool.query('SELECT * FROM clientes where id=$1', [id]);
+    const { id } = req.params;
+    console.log("Consulta de cliente:", id);
+
+    const result = await client.query('SELECT * FROM clientes WHERE id=$1', [id]);
+    if (result.rows.length === 0) return res.status(404).json({ message: 'Cliente no encontrado' });
+
     res.json(result.rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Error al obtener los usuarios 😢');
+  } catch (error) {
+    console.error('Error al obtener el cliente:', error);
+    res.status(500).json({ message: 'Error al obtener el cliente' });
+  } finally {
+    client.release();
   }
 });
 
+// Crear un nuevo cliente
 router.post('/customers', async (req, res) => {
-  const { id, nombre, saldo } = req.body;
-  console.log(req.body)
+  const client = await pool.connect();
   try {
-    const newCustomer = await pool.query(
+    const { id, nombre, saldo } = req.body;
+    console.log('Solicitud para agregar cliente:', req.body);
+
+    const newCustomer = await client.query(
       'INSERT INTO clientes (id, nombre, saldo) VALUES ($1, $2, $3) RETURNING *',
       [id, nombre, saldo]
     );
-    res.json(newCustomer.rows);
-    console.log('Cliente agregado con éxito');
-    console.table(newCustomer.rows)
+    console.log('Cliente agregado con éxito:', newCustomer.rows[0]);
+    res.json(newCustomer.rows[0]);
   } catch (error) {
-    res.status(500).json({ error: error.message });
-    console.error("Error al crear cliente 😢");
+    console.error('Error al crear cliente:', error);
+    res.status(500).json({ error: 'Error al crear cliente' });
+  } finally {
+    client.release();
   }
 });
 
+// Actualizar cliente (nombre y saldo)
 router.put('/customers/:id', async (req, res) => {
-  const { id } = req.params
-  const { nombre, saldo } = req.body
+  const client = await pool.connect();
   try {
-    console.log('Cambio de saldo por venta...')
-    const result = await pool.query(`UPDATE clientes set saldo=$1, nombre=$2 where id=$3 returning *`, [saldo, nombre, id])
-    console.table(result.rows)
-    res.json(result.rows)
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: error.message })
-  }
-})
+    const { id } = req.params;
+    const { nombre, saldo } = req.body;
+    console.log('Actualización de cliente:', id);
 
-router.put('/customers-sale/:id', async (req, res) => {
-  const { id } = req.params
-  const { saldo } = req.body
-  try {
-    const result = await pool.query(`UPDATE clientes set saldo=saldo+$1 where id=$2 returning *`, [saldo, id])
-    console.log('Cambio de saldo por venta...')
-    console.table(result.rows)
-    res.json(result.rows)
+    const result = await client.query(
+      'UPDATE clientes SET saldo=$1, nombre=$2 WHERE id=$3 RETURNING *',
+      [saldo, nombre, id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ message: 'Cliente no encontrado' });
+
+    console.log('Cliente actualizado:', result.rows[0]);
+    res.json(result.rows[0]);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: error.message })
+    console.error('Error al actualizar cliente:', error);
+    res.status(500).json({ error: 'Error al actualizar cliente' });
+  } finally {
+    client.release();
   }
-})
+});
+
+// Actualizar saldo del cliente tras una venta a crédito
+router.put('/customers-sale/:id', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const { saldo } = req.body;
+    console.log('Cambio de saldo por venta para cliente:', id);
+
+    const result = await client.query(
+      'UPDATE clientes SET saldo = saldo + $1 WHERE id=$2 RETURNING *',
+      [saldo, id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ message: 'Cliente no encontrado' });
+
+    console.log('Saldo actualizado:', result.rows[0]);
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error al actualizar saldo por venta:', error);
+    res.status(500).json({ error: 'Error al actualizar saldo' });
+  } finally {
+    client.release();
+  }
+});
 
 module.exports = router;
