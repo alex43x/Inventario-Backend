@@ -8,7 +8,7 @@ const axios = require('axios');
 router.get('/payments', async (req, res) => {
     const client = await pool.connect();
     try {
-        const result = await client.query('SELECT * from pagos');
+        const result = await client.query('SELECT * from public.pagos');
         res.json(result.rows);
         console.log('Consulta de pagos realizada');
         console.table(result.rows);
@@ -26,7 +26,7 @@ router.get('/payments/:customer', async (req, res) => {
     const { customer } = req.params;
     const { saldo } = req.query;
     try {
-        const payments = await client.query("select pago, fecha, 'Pago' as origen from pagos where cliente=$1 and estado != 'anulado' union all select total,fecha, 'Venta' as origen from ventas where cliente=$1 and estado!='anulado' order by fecha desc limit 15", [customer]);
+        const payments = await client.query("select pago, fecha, 'Pago' as origen from public.pagos where cliente=$1 and estado != 'anulado' union all select total,fecha, 'Venta' as origen from public.ventas where cliente=$1 and estado!='anulado' order by fecha desc limit 15", [customer]);
         console.log('Consulta de pagos por cliente: ', customer);
         payments.rows[0].saldo = Number(saldo);
         for (let i = 1; i < payments.rows.length; i++) {
@@ -58,9 +58,9 @@ router.get("/movements", async (req, res) => {
                 inventario.cant as cantidad,
                 inventario.fecha_compra as fecha
             FROM 
-                inventario
+                public.inventario
             JOIN 
-                productos ON inventario.id_prod = productos.id_prod 
+                public.productos ON inventario.id_prod = productos.id_prod 
             WHERE 
                 inventario.cant > 0 
             ORDER BY fecha_compra DESC

@@ -23,7 +23,7 @@ router.get('/inventory/:id', async (req, res) => {
   try {
     const { id } = req.params;
     console.log('Solicitud de lotes, Código de producto:', id);
-    const result = await client.query(`SELECT * FROM inventario WHERE id_prod=$1 AND estado='activo'`, [id]);
+    const result = await client.query(`SELECT * FROM public.inventario WHERE id_prod=$1 AND estado='activo'`, [id]);
     console.table(result.rows);
     res.status(200).json(result.rows);
   } catch (error) {
@@ -41,7 +41,7 @@ router.post('/inventory', async (req, res) => {
     const { prod, cant, precio, fecha } = req.body;
     console.log('Solicitud para agregar lote. Producto ID:', prod, 'Cantidad:', cant);
     await client.query(
-      `INSERT INTO inventario (id_prod, cant, precio_compra, fecha_compra) VALUES ($1, $2, $3, $4)`,
+      `INSERT INTO public.inventario (id_prod, cant, precio_compra, fecha_compra) VALUES ($1, $2, $3, $4)`,
       [prod, cant, precio, fecha]
     );
     res.status(201).json({ message: 'Lote agregado correctamente' });
@@ -67,7 +67,7 @@ router.post('/reduce-inventory', async (req, res) => {
 
     // Obtener lotes del producto ordenados por fecha de ingreso (FIFO)
     const lotes = await client.query(
-      `SELECT id_lote, cant FROM inventario WHERE id_prod = $1 AND cant > 0 ORDER BY fecha_compra ASC;`,
+      `SELECT id_lote, cant FROM public.inventario WHERE id_prod = $1 AND cant > 0 ORDER BY fecha_compra ASC;`,
       [productoId]
     );
 
@@ -79,14 +79,14 @@ router.post('/reduce-inventory', async (req, res) => {
       if (lote.cant <= cantidadRestante) {
         // Consumir todo el lote
         await client.query(
-          `UPDATE inventario SET cant = 0, estado = 'inactivo' WHERE id_lote = $1`,
+          `UPDATE public.inventario SET cant = 0, estado = 'inactivo' WHERE id_lote = $1`,
           [lote.id_lote]
         );
         cantidadRestante -= lote.cant;
       } else {
         // Consumir solo la cantidad necesaria
         await client.query(
-          `UPDATE inventario SET cant = cant - $1 WHERE id_lote = $2`,
+          `UPDATE public.inventario SET cant = cant - $1 WHERE id_lote = $2`,
           [cantidadRestante, lote.id_lote]
         );
         cantidadRestante = 0;
@@ -113,12 +113,12 @@ router.put('/inventory-cancel', async (req, res) => {
     const { lote, producto, stock } = req.body;
 
     const batch = await client.query(
-      "UPDATE inventario SET estado='anulado' WHERE id_lote=$1 RETURNING *",
+      "UPDATE public.inventario SET estado='anulado' WHERE id_lote=$1 RETURNING *",
       [lote]
     );
 
     const product = await client.query(
-      "UPDATE productos SET stock=stock-$1 WHERE id_prod=$2 RETURNING *",
+      "UPDATE public.productos SET stock=stock-$1 WHERE id_prod=$2 RETURNING *",
       [stock, producto]
     );
 

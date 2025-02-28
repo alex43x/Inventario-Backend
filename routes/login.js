@@ -11,7 +11,7 @@ router.post('/login', async (req, res) => {
   const client = await pool.connect()
   try {
     // Verificar si el usuario existe
-    const result = await client.query("SELECT * FROM users WHERE id_user = $1", [id]);
+    const result = await client.query("SELECT * FROM public.users WHERE id_user = $1", [id]);
     if (result.rows.length === 0) {
       console.log("Usuario no encontrado");
       return res.status(401).json({ message: 'Usuario o contraseña incorrectos' });

@@ -7,7 +7,7 @@ const pool = require('../db');
 router.get('/categories', async (req, res) => {
   const client = await pool.connect();
   try {
-    const result = await client.query('SELECT * FROM categorias');
+    const result = await client.query('SELECT * FROM public.categorias');
     console.log('Consulta de categorías realizada');
     res.json(result.rows);
   } catch (error) {

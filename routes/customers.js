@@ -10,7 +10,7 @@ router.get('/customers', async (req, res) => {
     const { search, category, page = 1, limit = 20 } = req.query;
     const offset = (page - 1) * limit;
 
-    let query = `SELECT * FROM clientes WHERE 1=1`;
+    let query = `SELECT * FROM public.clientes WHERE 1=1`;
     let values = [];
 
     if (search) {
@@ -44,7 +44,7 @@ router.get('/customers/:id', async (req, res) => {
     const { id } = req.params;
     console.log("Consulta de cliente:", id);
 
-    const result = await client.query('SELECT * FROM clientes WHERE id=$1', [id]);
+    const result = await client.query('SELECT * FROM public.clientes WHERE id=$1', [id]);
     if (result.rows.length === 0) return res.status(404).json({ message: 'Cliente no encontrado' });
 
     res.json(result.rows[0]);
@@ -64,7 +64,7 @@ router.post('/customers', async (req, res) => {
     console.log('Solicitud para agregar cliente:', req.body);
 
     const newCustomer = await client.query(
-      'INSERT INTO clientes (id, nombre, saldo) VALUES ($1, $2, $3) RETURNING *',
+      'INSERT INTO public.clientes (id, nombre, saldo) VALUES ($1, $2, $3) RETURNING *',
       [id, nombre, saldo]
     );
     console.log('Cliente agregado con éxito:', newCustomer.rows[0]);
@@ -86,7 +86,7 @@ router.put('/customers/:id', async (req, res) => {
     console.log('Actualización de cliente:', id);
 
     const result = await client.query(
-      'UPDATE clientes SET saldo=$1, nombre=$2 WHERE id=$3 RETURNING *',
+      'UPDATE public.clientes SET saldo=$1, nombre=$2 WHERE id=$3 RETURNING *',
       [saldo, nombre, id]
     );
     if (result.rows.length === 0) return res.status(404).json({ message: 'Cliente no encontrado' });
@@ -110,7 +110,7 @@ router.put('/customers-sale/:id', async (req, res) => {
     console.log('Cambio de saldo por venta para cliente:', id);
 
     const result = await client.query(
-      'UPDATE clientes SET saldo = saldo + $1 WHERE id=$2 RETURNING *',
+      'UPDATE public.clientes SET saldo = saldo + $1 WHERE id=$2 RETURNING *',
       [saldo, id]
     );
     if (result.rows.length === 0) return res.status(404).json({ message: 'Cliente no encontrado' });
