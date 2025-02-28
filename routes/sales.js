@@ -12,7 +12,7 @@ router.get('/sales', async (req, res) => {
         let query = `
             SELECT ventas.id, ventas.total, ventas.fecha, ventas.estado,
                    clientes.nombre AS cliente, users.username AS vendedor
-            FROM ventas
+            FROM public.ventas
             JOIN clientes ON ventas.cliente = clientes.id
             JOIN users ON ventas.vendedor = users.id_user
             WHERE 1=1`;
@@ -38,9 +38,9 @@ router.get('/sales', async (req, res) => {
 router.get('/sales-dashboard', async (req, res) => {
     try {
         const client = await pool.connect();
-        const daily = await client.query("SELECT date(fecha) AS inicio, SUM(total) AS total FROM ventas WHERE fecha::date = CURRENT_DATE GROUP BY inicio;");
-        const weekly = await client.query("SELECT DATE_TRUNC('week', fecha) AS inicio, SUM(total) AS total FROM ventas WHERE DATE_TRUNC('week', fecha) = DATE_TRUNC('week', CURRENT_DATE) GROUP BY inicio;");
-        const monthly = await client.query("SELECT DATE_TRUNC('month', fecha) AS inicio, SUM(total) AS total FROM ventas WHERE DATE_TRUNC('month', fecha) = DATE_TRUNC('month', CURRENT_DATE) GROUP BY inicio;");
+        const daily = await client.query("SELECT date(fecha) AS inicio, SUM(total) AS total FROM public.ventas WHERE fecha::date = CURRENT_DATE GROUP BY inicio;");
+        const weekly = await client.query("SELECT DATE_TRUNC('week', fecha) AS inicio, SUM(total) AS total FROM public.ventas WHERE DATE_TRUNC('week', fecha) = DATE_TRUNC('week', CURRENT_DATE) GROUP BY inicio;");
+        const monthly = await client.query("SELECT DATE_TRUNC('month', fecha) AS inicio, SUM(total) AS total FROM public.ventas WHERE DATE_TRUNC('month', fecha) = DATE_TRUNC('month', CURRENT_DATE) GROUP BY inicio;");
         client.release();
         res.json([daily.rows[0], weekly.rows[0], monthly.rows[0]]);
     } catch (err) {
@@ -62,7 +62,7 @@ router.get('/sales-graph', async (req, res) => {
                 COALESCE(SUM(v.total), 0) AS total_dia 
             FROM 
                 (SELECT generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, INTERVAL '1 day')::DATE AS dia) AS fechas 
-            LEFT JOIN ventas v 
+            LEFT JOIN public.ventas v 
                 ON DATE(v.fecha) = fechas.dia 
             GROUP BY fechas.dia 
             ORDER BY fechas.dia;
@@ -84,7 +84,7 @@ router.get('/sales-graph', async (req, res) => {
 //Para obtener ventas por id
 router.get('/sales/:id', async (req, res) => {
     try {
-        const result = await pool.query("SELECT id, fecha, total, cliente, vendedor FROM ventas WHERE id = $1 AND estado = true", [req.params.id]);
+        const result = await pool.query("SELECT id, fecha, total, cliente, vendedor FROM public.ventas WHERE id = $1 AND estado = true", [req.params.id]);
         res.json(result.rows);
     } catch (err) {
         console.error(err);
@@ -106,7 +106,7 @@ router.get('/sub-sales-by/:id', async (req, res) => {
                 subventas.total, 
                 productos.nombre AS producto 
             FROM 
-                subventas 
+                public.subventas 
             JOIN 
                 productos ON subventas.producto = productos.id_prod 
             WHERE 
@@ -139,7 +139,7 @@ router.get('/sub-sales-product/:id', async (req, res) => {
                 subventas.cantidad AS cantidad, 
                 TO_CHAR(ventas.fecha, 'YYYY-MM-DD HH24:MI:SS') AS total 
             FROM 
-                subventas 
+                public.subventas 
             JOIN 
                 ventas ON subventas.id_venta = ventas.id 
             JOIN 
@@ -166,7 +166,7 @@ router.post('/sales', async (req, res) => {
     try {
         const { fecha, subtotal, iva, total, cliente, vendedor, contado, estado } = req.body;
         const result = await client.query(
-            "INSERT INTO ventas (fecha, subtotal, iva, total, cliente, vendedor, contado, estado) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *",
+            "INSERT INTO public.ventas (fecha, subtotal, iva, total, cliente, vendedor, contado, estado) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *",
             [fecha, subtotal, iva, total, cliente, vendedor, contado, estado]
         );
         res.json(result.rows[0]);
@@ -189,7 +189,7 @@ router.post('/sales-products', async (req, res) => {
 
         // Inserción en la tabla subventas
         const newSale = await client.query(
-            'INSERT INTO subventas (id_venta, producto, cantidad, iva, subtotal, total) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+            'INSERT INTO public.subventas (id_venta, producto, cantidad, iva, subtotal, total) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
             [venta, producto, cantidad, iva, subtotal, total]
         );
 
@@ -238,7 +238,7 @@ router.post('/sales-cancel', async (req, res) => {
 
         // 1. Actualizar la venta a "anulado"
         const saleResult = await client.query(
-            "UPDATE ventas SET estado = 'anulado' WHERE id = $1 RETURNING *",
+            "UPDATE public.ventas SET estado = 'anulado' WHERE id = $1 RETURNING *",
             [saleId]
         );
         if (saleResult.rows.length === 0) {
@@ -248,7 +248,7 @@ router.post('/sales-cancel', async (req, res) => {
 
         // 2. Obtener todas las subventas asociadas a la venta
         const subventasResult = await client.query(
-            "SELECT * FROM subventas WHERE id_venta = $1",
+            "SELECT * FROM public.subventas WHERE id_venta = $1",
             [saleId]
         );
         const subventas = subventasResult.rows;
@@ -257,14 +257,14 @@ router.post('/sales-cancel', async (req, res) => {
         for (const subventa of subventas) {
             // Selecciona un lote activo para el producto (por ejemplo, el más antiguo)
             const loteResult = await client.query(
-                "SELECT id_lote, cant FROM inventario WHERE id_prod = $1 AND estado != 'anulado' ORDER BY fecha_compra DESC LIMIT 1",
+                "SELECT id_lote, cant FROM public.inventario WHERE id_prod = $1 AND estado != 'anulado' ORDER BY fecha_compra DESC LIMIT 1",
                 [subventa.producto]
             );
             if (loteResult.rows.length > 0) {
                 const lote = loteResult.rows[0];
                 // Revertir la reducción: sumar la cantidad vendida a ese lote
                 await client.query(
-                    "UPDATE inventario SET cant = cant + $1 WHERE id_lote = $2",
+                    "UPDATE public.inventario SET cant = cant + $1 WHERE id_lote = $2",
                     [subventa.cantidad, lote.id]
                 );
             } else {
@@ -274,14 +274,14 @@ router.post('/sales-cancel', async (req, res) => {
 
         // 4. Anular todos los pagos asociados a la venta y obtener la suma total pagada
         const paymentsResult = await client.query(
-            "SELECT COALESCE(SUM(pago), 0) AS total_pagado FROM pagos WHERE venta = $1 AND estado != 'anulado'",
+            "SELECT COALESCE(SUM(pago), 0) AS total_pagado FROM public.pagos WHERE venta = $1 AND estado != 'anulado'",
             [saleId]
         );
         const totalPagado = Number(paymentsResult.rows[0].total_pagado);
 
         // Marcar todos los pagos de esa venta como "anulado"
         await client.query(
-            "UPDATE pagos SET estado = 'anulado' WHERE venta = $1 AND estado != 'anulado'",
+            "UPDATE public.pagos SET estado = 'anulado' WHERE venta = $1 AND estado != 'anulado'",
             [saleId]
         );
 
@@ -293,7 +293,7 @@ router.post('/sales-cancel', async (req, res) => {
             const total = sale.total || 0;
             const pagado = totalPagado || 0;
             await client.query(
-                "UPDATE clientes SET saldo = saldo - ($1::numeric - $2::numeric) WHERE id = $3",
+                "UPDATE public.clientes SET saldo = saldo - ($1::numeric - $2::numeric) WHERE id = $3",
                 [total, pagado, sale.cliente]
             );
 
@@ -318,7 +318,7 @@ router.post('/sales-cancel', async (req, res) => {
 //no implementado.
 router.delete('/sales/:id', async (req, res) => {
     try {
-        const result = await pool.query("DELETE FROM ventas WHERE id = $1", [req.params.id]);
+        const result = await pool.query("DELETE FROM public.ventas WHERE id = $1", [req.params.id]);
         res.json(result.rows);
     } catch (err) {
         console.error(err);

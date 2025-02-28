@@ -10,7 +10,7 @@ router.get('/products', async (req, res) => {
     const { search, category, page = 1, limit = 20 } = req.query;
     const offset = (page - 1) * limit;
 
-    let query = `SELECT * FROM productos WHERE 1=1`;
+    let query = `SELECT * FROM public.productos WHERE 1=1`;
     let values = [];
 
     if (search) {
@@ -41,7 +41,7 @@ router.get('/products/:id', async (req, res) => {
   const client = await pool.connect();
   try {
     const { id } = req.params;
-    const result = await client.query(`SELECT * FROM productos WHERE id_prod=$1`, [id]);
+    const result = await client.query(`SELECT * FROM public.productos WHERE id_prod=$1`, [id]);
     res.json(result.rows);
   } catch (err) {
     console.error(err);
@@ -58,7 +58,7 @@ router.get('/products-alerts', async (req, res) => {
     client = await pool.connect();
     const result = await client.query(
       `SELECT nombre as elemento, stock as cantidad, alerta as total 
-       FROM productos 
+       FROM public.productos 
        WHERE alerta >= stock 
        ORDER BY stock ASC 
        LIMIT 20`
@@ -84,7 +84,7 @@ router.get('/search/products', async (req, res) => {
   try {
     client = await pool.connect();
     const result = await client.query(
-      `SELECT * FROM productos WHERE nombre ILIKE $1 AND stock > 0 LIMIT $2`,
+      `SELECT * FROM public.productos WHERE nombre ILIKE $1 AND stock > 0 LIMIT $2`,
       [`%${nombre}%`, limit] // Búsqueda que ignora mayúsculas/minúsculas
     );
     res.json(result.rows);
@@ -103,7 +103,7 @@ router.post('/products', async (req, res) => {
   try {
     const { nombre, descrip, stock, precio, iva, categoria, alerta } = req.body;
     const newProduct = await client.query(
-      'INSERT INTO productos (nombre, descrip, stock, precio, iva, categoria, alerta) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+      'INSERT INTO public.productos (nombre, descrip, stock, precio, iva, categoria, alerta) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
       [nombre, descrip, stock, precio, iva, categoria, alerta]
     );
     res.json(newProduct.rows[0]);
@@ -121,7 +121,7 @@ router.post('/products/:id', async (req, res) => {
     const { id } = req.params;
     const { cant } = req.body;
     console.log('Actualizando stock. ID:', id, 'Cantidad:', cant);
-    await client.query(`UPDATE productos SET stock = stock + $1 WHERE id_prod = $2`, [cant, id]);
+    await client.query(`UPDATE public.productos SET stock = stock + $1 WHERE id_prod = $2`, [cant, id]);
     res.json({ message: 'Stock actualizado' });
   } catch (err) {
     res.status(500).json({ error: 'Error al actualizar el stock' });
@@ -136,7 +136,7 @@ router.delete('/products/:id', async (req, res) => {
   try {
     const { id } = req.params;
     console.log('Eliminando producto con ID:', id);
-    await client.query('DELETE FROM productos WHERE id_prod = $1', [id]);
+    await client.query('DELETE FROM public.productos WHERE id_prod = $1', [id]);
     res.json({ message: 'Producto eliminado con éxito' });
   } catch (err) {
     res.status(500).send('Error al eliminar el producto 😢');
@@ -152,7 +152,7 @@ router.put('/products-edit/:id', async (req, res) => {
     const { id } = req.params;
     const { nombre, descrip, stock, iva, categoria, precio } = req.body;
     const updatedProduct = await client.query(
-      'UPDATE productos SET nombre = $2, descrip = $3, stock = $4, iva = $5, categoria = $6, precio = $7 WHERE id_prod = $1 RETURNING *',
+      'UPDATE public.productos SET nombre = $2, descrip = $3, stock = $4, iva = $5, categoria = $6, precio = $7 WHERE id_prod = $1 RETURNING *',
       [id, nombre, descrip, stock, iva, categoria, precio]
     );
     if (updatedProduct.rows.length === 0) {
@@ -174,7 +174,7 @@ router.put('/:id/reduce-stock', async (req, res) => {
     const { cantidad } = req.body;
     console.log('Reduciendo stock...');
     const reduceStock = await client.query(
-      'UPDATE productos SET stock = stock - $1 WHERE id_prod = $2 RETURNING *',
+      'UPDATE public.productos SET stock = stock - $1 WHERE id_prod = $2 RETURNING *',
       [cantidad, id]
     );
     res.json(reduceStock.rows[0]);

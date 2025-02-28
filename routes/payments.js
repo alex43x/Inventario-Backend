@@ -83,7 +83,7 @@ router.post('/payments', async (req, res) => {
     console.log('Solicitud de registro de pago en proceso...', req.body);
     try {
         const newSale = await client.query(
-            'INSERT INTO pagos (venta, pago, fecha , contado, cliente, estado) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+            'INSERT INTO public.pagos (venta, pago, fecha , contado, cliente, estado) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
             [venta, pago, fecha, contado, cliente, estado]
         );
         res.json(newSale.rows[0]);
@@ -108,12 +108,12 @@ router.put('/payments-cancel', async (req, res) => {
         await client.query('BEGIN');
 
         const payment = await client.query(
-            "UPDATE pagos SET estado='anulado' WHERE id=$1 RETURNING *",
+            "UPDATE public.pagos SET estado='anulado' WHERE id=$1 RETURNING *",
             [pago]
         );
 
         const saldo = await client.query(
-            "UPDATE clientes SET saldo=saldo-$1 WHERE id=$2 RETURNING *",
+            "UPDATE public.clientes SET saldo=saldo-$1 WHERE id=$2 RETURNING *",
             [monto, cliente]
         );
 
@@ -143,7 +143,7 @@ router.post('/payments-debt', async (req, res) => {
         await client.query('BEGIN');
 
         const sales = await client.query(
-            "SELECT id, total FROM ventas WHERE cliente=$1 AND estado='pendiente' ORDER BY fecha ASC",
+            "SELECT id, total FROM public.ventas WHERE cliente=$1 AND estado='pendiente' ORDER BY fecha ASC",
             [cliente]
         );
 
@@ -153,7 +153,7 @@ router.post('/payments-debt', async (req, res) => {
 
         while (montoRestante > 0 && i < pendingSales.length) {
             let payments = await client.query(
-                "SELECT COALESCE(SUM(pago), 0) AS total_pagado FROM pagos WHERE cliente = $1 AND estado = 'pendiente' AND venta = $2",
+                "SELECT COALESCE(SUM(pago), 0) AS total_pagado FROM public.pagos WHERE cliente = $1 AND estado = 'pendiente' AND venta = $2",
                 [cliente, pendingSales[i].id]
             );
 
@@ -162,17 +162,17 @@ router.post('/payments-debt', async (req, res) => {
 
             if (montoRestante >= saldoVenta) {
                 await client.query(
-                    "INSERT INTO pagos (venta, pago, fecha, contado, cliente, estado) VALUES ($1, $2, $3, $4, $5, $6)",
+                    "INSERT INTO public.pagos (venta, pago, fecha, contado, cliente, estado) VALUES ($1, $2, $3, $4, $5, $6)",
                     [pendingSales[i].id, saldoVenta, fecha, false, cliente, 'cerrado']
                 );
 
                 montoRestante -= saldoVenta;
 
-                await client.query("UPDATE ventas SET estado='cerrado' WHERE id=$1", [pendingSales[i].id]);
-                await client.query("UPDATE pagos SET estado='cerrado' WHERE venta=$1", [pendingSales[i].id]);
+                await client.query("UPDATE public.ventas SET estado='cerrado' WHERE id=$1", [pendingSales[i].id]);
+                await client.query("UPDATE public.pagos SET estado='cerrado' WHERE venta=$1", [pendingSales[i].id]);
             } else {
                 await client.query(
-                    "INSERT INTO pagos (venta, pago, fecha, contado, cliente, estado) VALUES ($1, $2, $3, $4, $5, $6)",
+                    "INSERT INTO public.pagos (venta, pago, fecha, contado, cliente, estado) VALUES ($1, $2, $3, $4, $5, $6)",
                     [pendingSales[i].id, montoRestante, fecha, false, cliente, 'pendiente']
                 );
 
@@ -183,7 +183,7 @@ router.post('/payments-debt', async (req, res) => {
         }
 
         await client.query(
-            "UPDATE clientes SET saldo=saldo-$1 WHERE id=$2 RETURNING *",
+            "UPDATE public.clientes SET saldo=saldo-$1 WHERE id=$2 RETURNING *",
             [pago, cliente]
         );
 

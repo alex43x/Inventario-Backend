@@ -10,7 +10,7 @@ router.get('/reportes', async (req, res) => {
         
         const ventasVendedores = await client.query(`
             SELECT v.vendedor as elemento, u.username as cantidad, SUM(v.total) AS total
-            FROM ventas v
+            FROM public.ventas v
             JOIN users u ON v.vendedor = u.id_user
             WHERE v.fecha BETWEEN NOW() - INTERVAL '30 days' AND NOW()
             GROUP BY v.vendedor, u.username
@@ -19,7 +19,7 @@ router.get('/reportes', async (req, res) => {
 
         const clientesTop = await client.query(`
             SELECT c.id AS elemento, c.nombre as cantidad, COUNT(v.id) AS total
-            FROM ventas v
+            FROM public.ventas v
             JOIN clientes c ON v.cliente = c.id
             WHERE v.fecha >= CURRENT_DATE - INTERVAL '30 days'
             GROUP BY c.id, c.nombre
@@ -29,7 +29,7 @@ router.get('/reportes', async (req, res) => {
 
         const clientesTopRecaudacion = await client.query(`
             SELECT v.cliente as elemento, c.nombre as cantidad, COALESCE(SUM(v.total), 0) AS total
-            FROM ventas v
+            FROM public.ventas v
             JOIN clientes c ON v.cliente = c.id
             WHERE v.fecha >= CURRENT_DATE - INTERVAL '30 days'
             GROUP BY v.cliente, c.nombre
@@ -39,7 +39,7 @@ router.get('/reportes', async (req, res) => {
 
         const productosMasVendidos = await client.query(`
             SELECT p.id_prod as elemento, p.nombre as cantidad, SUM(sv.cantidad) AS total
-            FROM subventas sv
+            FROM public.subventas sv
             JOIN productos p ON sv.producto = p.id_prod
             JOIN ventas v ON sv.id_venta = v.id
             WHERE v.fecha BETWEEN DATE_TRUNC('month', CURRENT_DATE) 
@@ -51,13 +51,13 @@ router.get('/reportes', async (req, res) => {
 
         const recaudacionTotal = await client.query(`
             SELECT SUM(total) AS recaudacion
-            FROM ventas
+            FROM public.ventas
             WHERE fecha BETWEEN NOW() - INTERVAL '30 days' AND NOW();
         `);
 
         const ventasPorCategoria = await client.query(`
             SELECT c.nombre AS categoria, SUM(sv.total) AS total_vendido
-            FROM subventas sv
+            FROM public.subventas sv
             JOIN productos p ON sv.producto = p.id_prod
             JOIN categorias c ON p.categoria = c.id
             JOIN ventas v ON sv.id_venta = v.id
@@ -68,7 +68,7 @@ router.get('/reportes', async (req, res) => {
 
         const ivaDf = await client.query(`
             SELECT SUM(iva) AS iva_df
-            FROM ventas
+            FROM public.ventas
             WHERE fecha BETWEEN DATE_TRUNC('month', CURRENT_DATE) 
                             AND (DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month - 1 day');
         `);
@@ -81,7 +81,7 @@ router.get('/reportes', async (req, res) => {
                     ELSE 0
                 END
             ) AS iva_cf
-            FROM inventario i
+            FROM public.inventario i
             JOIN productos p ON i.id_prod = p.id_prod
             WHERE i.fecha_compra BETWEEN DATE_TRUNC('month', CURRENT_DATE) 
                                     AND (DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month - 1 day') 
