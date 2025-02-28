@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const pool = require('./db'); // Importa el pool
+const pool = require('./db'); // Importa el pool de datos
 
 const app = express();
 
@@ -28,8 +28,8 @@ app.use(reportsRoutes);
 
 const port = 3000;
 const server = app.listen(port, () => {
-    console.log(`🚀 Servidor corriendo en http://localhost:${port}`);
-    console.log("📡 Conectando a PostgreSQL con:", process.env.DB_HOST, process.env.DB_USER);
+    console.log(` Servidor corriendo en http://localhost:${port}`);
+    console.log(" Conectando a PostgreSQL con:", process.env.DB_HOST, process.env.DB_USER);
 });
 
 // Manejar errores del servidor
