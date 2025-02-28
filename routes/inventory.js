@@ -7,7 +7,7 @@ const pool = require('../db');
 router.get('/inventory', async (req, res) => {
   const client = await pool.connect();
   try {
-    const result = await client.query("SELECT * FROM inventario WHERE estado='activo'");
+    const result = await client.query("SELECT * FROM public.inventario WHERE estado='activo'");
     res.status(200).json(result.rows);
   } catch (error) {
     console.error(error);
