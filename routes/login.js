@@ -35,7 +35,7 @@ router.post('/login', async (req, res) => {
     const token = jwt.sign(
       { id: user.id_user, username: user.username },
       secretKey,
-      { expiresIn: '3h' }
+      { expiresIn: '20' }
     );
 
     console.log("Inicio de sesión exitoso:", user.username);
